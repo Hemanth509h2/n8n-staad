@@ -60,10 +60,13 @@ ENV N8N_RUNNERS_TASK_TIMEOUT=300 \
 
 USER node
 
+# n8n's web port inside the container (its default is 5678). Map it with
+# `docker run -p <host-port>:5610`.
+ENV N8N_PORT=5610
 EXPOSE 5610
 
 # Uses node because the hardened image doesn't guarantee curl or wget.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.N8N_PORT||process.env.PORT||5679)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+    CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.N8N_PORT+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
 # No ENTRYPOINT: the base image's `tini -- /docker-entrypoint.sh` starts n8n.

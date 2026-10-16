@@ -25,17 +25,17 @@ Without `N8N_ENCRYPTION_KEY`, n8n doesn't fail: it generates a key inside the co
 ```sh
 cp .env.example .env    # then fill in the two secrets
 docker build -t n8n-staad .
-docker run -it --rm -p 5678:5678 --env-file .env n8n-staad
+docker run -it --rm -p 5610:5610 --env-file .env n8n-staad
 ```
 
-Open http://localhost:5678. If port 5678 is already in use on your machine, map another host port, e.g. `-p 5680:5678`, and open http://localhost:5680.
+Open http://localhost:5610. n8n listens on port 5610 inside the container. If that port is taken on your machine, change only the host side, e.g. `-p 5680:5610`, and open http://localhost:5680.
 
-When n8n is reachable at a public URL, also set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to that URL (with a trailing slash), or n8n shows webhook URLs as `http://localhost:5678/...`. Behind a reverse proxy, set `N8N_PROXY_HOPS=1`.
+When n8n is reachable at a public URL, also set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to that URL (with a trailing slash), or n8n shows webhook URLs as `http://localhost:5610/...`. Behind a reverse proxy, set `N8N_PROXY_HOPS=1`.
 
 Every instance started with `--env-file .env` uses the same Neon database and `n8n` schema, so run only one at a time, or scheduled workflows will run twice. For a throwaway instance with its own SQLite database:
 
 ```sh
-docker run -it --rm -p 5678:5678 -e DB_TYPE=sqlite -v n8n_data:/home/node/.n8n n8n-staad
+docker run -it --rm -p 5610:5610 -e DB_TYPE=sqlite -v n8n_data:/home/node/.n8n n8n-staad
 ```
 
 ## Database
