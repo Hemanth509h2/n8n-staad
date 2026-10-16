@@ -62,8 +62,8 @@ USER node
 
 # n8n's web port inside the container (its default is 5678). Map it with
 # `docker run -p <host-port>:5610`.
-ENV N8N_PORT=5610
-EXPOSE 5610
+ENV N8N_PORT=5678
+EXPOSE 5678
 
 # Uses node because the hardened image doesn't guarantee curl or wget.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
