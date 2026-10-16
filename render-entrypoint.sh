@@ -20,6 +20,18 @@ if [ -n "$RENDER" ]; then
   fi
 fi
 
+# n8n points each connection at its schema with a session-level
+# `SET search_path` (and sets statement_timeout the same way). A transaction
+# pooler like Neon's "-pooler" endpoint drops session settings between
+# transactions, so n8n's tables could be created in, and read from, `public`.
+case "$DB_POSTGRESDB_HOST" in
+  *-pooler.*)
+    echo "ERROR: DB_POSTGRESDB_HOST is a connection-pooler endpoint ($DB_POSTGRESDB_HOST)." >&2
+    echo "Use the direct endpoint instead: the same host without '-pooler'." >&2
+    exit 1
+    ;;
+esac
+
 # Render routes traffic to $PORT (10000 unless you set it). Locally PORT is
 # unset, so n8n keeps its default 5678.
 if [ -z "$N8N_PORT" ] && [ -n "$PORT" ]; then

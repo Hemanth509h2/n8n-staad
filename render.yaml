@@ -1,16 +1,20 @@
-# Render Blueprint: n8n web service built from ./Dockerfile, with a Render
-# Postgres database for workflows, credentials and execution history.
+# Render Blueprint: n8n web service built from ./Dockerfile.
 #
-# Both use the free plan. On free, the web service sleeps after 15 minutes
-# without traffic (so schedule triggers stop firing and the first webhook
-# after a sleep is slow), and the free database expires after 30 days. Use a
-# paid plan for anything you depend on.
+# Data lives in the existing Neon Postgres database (shared with the backend
+# and feedback-board), in its own `n8n` schema; see DB_POSTGRESDB_SCHEMA in the
+# Dockerfile.
+#
+# On the free plan the service sleeps after 15 minutes without traffic, so
+# schedule triggers stop firing and the first webhook after a sleep is slow.
 
 services:
   - type: web
     name: n8n-service
     runtime: docker
     plan: free
+    # Same region as the Neon database (aws ap-southeast-1). From the default
+    # region (Oregon), every query would cross the Pacific.
+    region: singapore
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
@@ -31,37 +35,29 @@ services:
       - key: N8N_ENCRYPTION_KEY
         generateValue: true
 
+      # Neon. Use the *direct* host (no "-pooler"); render-entrypoint.sh
+      # refuses to start on a pooler host. Values marked `sync: false` are
+      # secrets: Render asks for them when the Blueprint is created.
       - key: DB_TYPE
         value: postgresdb
       - key: DB_POSTGRESDB_HOST
-        fromDatabase:
-          name: n8n-db
-          property: host
+        sync: false
       - key: DB_POSTGRESDB_PORT
-        fromDatabase:
-          name: n8n-db
-          property: port
+        value: "5432"
       - key: DB_POSTGRESDB_DATABASE
-        fromDatabase:
-          name: n8n-db
-          property: database
+        value: neondb
       - key: DB_POSTGRESDB_USER
-        fromDatabase:
-          name: n8n-db
-          property: user
+        sync: false
       - key: DB_POSTGRESDB_PASSWORD
-        fromDatabase:
-          name: n8n-db
-          property: password
+        sync: false
+      - key: DB_POSTGRESDB_SSL_ENABLED
+        value: "true"
+      # ms; gives a suspended Neon compute time to wake up.
+      - key: DB_POSTGRESDB_CONNECTION_TIMEOUT
+        value: "30000"
 
-      # Keeps execution history from filling the free database's 1 GB.
+      # Keeps execution history from growing without bound.
       - key: EXECUTIONS_DATA_PRUNE
         value: "true"
       - key: EXECUTIONS_DATA_MAX_AGE
         value: "168" # hours (7 days)
-
-databases:
-  - name: n8n-db
-    plan: free
-    # Paid plans can grow the disk in 5 GB steps:
-    # diskSizeGB: 5

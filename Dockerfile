@@ -22,6 +22,11 @@ ENV NODE_ENV=production \
     N8N_DIAGNOSTICS_ENABLED=false \
     N8N_PERSONALIZATION_ENABLED=false
 
+# Keep n8n's ~60 tables in their own Postgres schema (n8n creates it on first
+# start). The Neon database is shared with the backend and feedback-board,
+# whose tables live in `public`. Ignored when running on SQLite.
+ENV DB_POSTGRESDB_SCHEMA=n8n
+
 # On Render's free/starter CPU the JS task runner takes 40s+ to boot, which
 # outlives the default 30s grant token and fails with "invalid or expired grant
 # token ... 403", leaving Code nodes without a runner. Value is in seconds.

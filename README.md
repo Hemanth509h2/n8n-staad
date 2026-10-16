@@ -1,12 +1,12 @@
 # n8n on Render
 
-A Docker image for [n8n](https://n8n.io/) (pinned to `n8nio/n8n:2.42.7`) plus a Render Blueprint that runs it with a Render Postgres database.
+A Docker image for [n8n](https://n8n.io/) (pinned to `n8nio/n8n:2.42.7`) plus a Render Blueprint that runs it against the project's Neon Postgres database.
 
 | File | Purpose |
 | --- | --- |
 | `Dockerfile` | Official n8n image with a time zone, a health check and the Render entrypoint |
-| `render-entrypoint.sh` | Maps Render's `PORT` and `RENDER_EXTERNAL_URL` onto n8n's settings, then starts n8n |
-| `render.yaml` | Render Blueprint: Docker web service and a Postgres database |
+| `render-entrypoint.sh` | Checks the encryption key and database host, maps Render's `PORT` and `RENDER_EXTERNAL_URL` onto n8n's settings, then starts n8n |
+| `render.yaml` | Render Blueprint: Docker web service in Singapore, next to the Neon database |
 
 ## Run locally
 
@@ -22,20 +22,22 @@ Open http://localhost:5678. Locally n8n uses SQLite inside the `n8n_data` volume
 
 ## Deploy on Render
 
-**Blueprint (recommended):** push this repo to GitHub, then in Render go to **New → Blueprint** and pick the repo. Render creates `n8n-service` (built from the `Dockerfile`) and the `n8n-db` Postgres database, and wires them together.
+**Blueprint (recommended):** push this repo to GitHub, then in Render go to **New → Blueprint** and pick the repo. Render creates `n8n-service` in Singapore and asks for the database host, user and password.
 
-**Existing web service:** set **Runtime** to Docker and **Dockerfile path** to `./Dockerfile`, then add these environment variables (values from your Postgres's **Connect → Internal** details):
+**Existing web service:** set **Runtime** to Docker and **Dockerfile path** to `./Dockerfile`, then add these environment variables:
 
 | Variable | Value |
 | --- | --- |
 | `PORT` | `5678` |
-| `N8N_ENCRYPTION_KEY` | A long random string. Never change it afterwards. |
+| `N8N_ENCRYPTION_KEY` | A long random string (`openssl rand -base64 32`). Never change it afterwards. |
 | `DB_TYPE` | `postgresdb` |
-| `DB_POSTGRESDB_HOST` | internal host name |
+| `DB_POSTGRESDB_HOST` | Neon's **direct** host: the one from your connection string, without `-pooler` |
 | `DB_POSTGRESDB_PORT` | `5432` |
-| `DB_POSTGRESDB_DATABASE` | database name |
-| `DB_POSTGRESDB_USER` | user name |
-| `DB_POSTGRESDB_PASSWORD` | password |
+| `DB_POSTGRESDB_DATABASE` | `neondb` |
+| `DB_POSTGRESDB_USER` | `neondb_owner` |
+| `DB_POSTGRESDB_PASSWORD` | the password from the connection string |
+| `DB_POSTGRESDB_SSL_ENABLED` | `true` |
+| `DB_POSTGRESDB_CONNECTION_TIMEOUT` | `30000` |
 
 Set the health check path to `/healthz`.
 
@@ -43,7 +45,15 @@ You don't need to set `N8N_WEBHOOK_URL` or `N8N_EDITOR_BASE_URL`: `render-entryp
 
 Without `PORT`, Render has to detect the port itself, logs "New primary port detected: 5678" and restarts the deploy once.
 
-**Free plan limits:** the service sleeps after 15 minutes without traffic (schedule triggers don't run while it sleeps), and a free Postgres database expires after 30 days.
+Create the service in the **Singapore** region to sit next to the Neon database (aws ap-southeast-1). Render can't move an existing service to another region, so a service in another region has to be recreated.
+
+**Free plan limits:** the service sleeps after 15 minutes without traffic (schedule triggers don't run while it sleeps).
+
+## Database
+
+n8n shares the Neon `neondb` database with the backend and the feedback board, but keeps its tables in its own `n8n` schema (`DB_POSTGRESDB_SCHEMA=n8n` in the `Dockerfile`). n8n creates the schema on first start. The apps' tables in `public` are never touched, and the backend's Prisma only looks at `public`, so it won't try to drop n8n's tables.
+
+It must use Neon's **direct** endpoint. n8n selects its schema with a per-connection `SET search_path`, which Neon's `-pooler` endpoint (PgBouncer in transaction mode) doesn't keep, so n8n's tables could end up in `public`. `render-entrypoint.sh` refuses to start on a `-pooler` host.
 
 ## About the Python warning
 
