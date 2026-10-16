@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # n8n for Render (also runs locally with plain `docker run`).
 #
 # Pulled from Docker Hub rather than docker.n8n.io to avoid that registry's
@@ -57,7 +55,10 @@ ENV N8N_RUNNERS_TASK_TIMEOUT=300 \
     N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=268435456 \
     N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=1000
 
-COPY --chown=root:root --chmod=0755 render-entrypoint.sh /render-entrypoint.sh
+# Plain COPY (no --chmod) so the legacy builder works too, not only BuildKit.
+# COPY files are owned by root, and the entrypoint runs the script through
+# /bin/sh, so it doesn't depend on the file's execute bit.
+COPY render-entrypoint.sh /render-entrypoint.sh
 
 USER node
 
@@ -68,4 +69,4 @@ EXPOSE 5678
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.N8N_PORT||process.env.PORT||5678)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
-ENTRYPOINT ["tini", "--", "/render-entrypoint.sh"]
+ENTRYPOINT ["tini", "--", "/bin/sh", "/render-entrypoint.sh"]
