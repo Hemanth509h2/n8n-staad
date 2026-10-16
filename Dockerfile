@@ -22,10 +22,26 @@ ENV NODE_ENV=production \
     N8N_DIAGNOSTICS_ENABLED=false \
     N8N_PERSONALIZATION_ENABLED=false
 
-# Keep n8n's ~60 tables in their own Postgres schema (n8n creates it on first
-# start). The Neon database is shared with the backend and feedback-board,
-# whose tables live in `public`. Ignored when running on SQLite.
-ENV DB_POSTGRESDB_SCHEMA=n8n
+# Database: the project's Neon Postgres, direct endpoint (never "-pooler"; see
+# render-entrypoint.sh). n8n keeps its ~60 tables in their own `n8n` schema,
+# which it creates on first start, because the database is shared with the
+# backend and feedback-board, whose tables live in `public`.
+#
+# Only non-secret settings live here: this repo is public. The two secrets,
+# DB_POSTGRESDB_PASSWORD and N8N_ENCRYPTION_KEY, come from a .env file loaded
+# at startup (Render Secret File /etc/secrets/.env) or from the environment.
+ENV DB_TYPE=postgresdb \
+    DB_POSTGRESDB_HOST=ep-bold-butterfly-aox1gpwj.c-2.ap-southeast-1.aws.neon.tech \
+    DB_POSTGRESDB_PORT=5432 \
+    DB_POSTGRESDB_DATABASE=neondb \
+    DB_POSTGRESDB_USER=neondb_owner \
+    DB_POSTGRESDB_SCHEMA=n8n \
+    DB_POSTGRESDB_SSL_ENABLED=true \
+    DB_POSTGRESDB_CONNECTION_TIMEOUT=30000
+
+# Keep execution history to 7 days.
+ENV EXECUTIONS_DATA_PRUNE=true \
+    EXECUTIONS_DATA_MAX_AGE=168
 
 # On Render's free/starter CPU the JS task runner takes 40s+ to boot, which
 # outlives the default 30s grant token and fails with "invalid or expired grant

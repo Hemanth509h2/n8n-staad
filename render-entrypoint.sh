@@ -3,6 +3,32 @@
 # off to the stock n8n entrypoint. Anything already set in the environment wins.
 set -e
 
+# Loads KEY=VALUE lines from a .env file; its values override the image
+# defaults and any variable set elsewhere. Read line by line rather than
+# sourced, so values are never run as shell code.
+load_env_file() {
+  [ -r "$1" ] || return 0
+  echo "Loading settings from $1"
+  cr=$(printf '\r')
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%"$cr"}"
+    line="${line#export }"
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    case "$key" in ''|[0-9]*|*[!A-Za-z0-9_]*) continue ;; esac
+    case "$value" in
+      \"*\") value="${value#\"}"; value="${value%\"}" ;;
+      \'*\') value="${value#\'}"; value="${value%\'}" ;;
+    esac
+    export "$key=$value"
+  done < "$1"
+}
+
+# Render mounts Secret Files at /etc/secrets/<name>. Point ENV_FILE elsewhere
+# to use a different file.
+load_env_file "${ENV_FILE:-/etc/secrets/.env}"
+
 # Render sets RENDER=true. Its filesystem is wiped on every deploy and restart,
 # so a key n8n auto-generates into /home/node/.n8n is lost each time, and every
 # credential saved in the database with it becomes unreadable. Refuse to start
@@ -10,8 +36,9 @@ set -e
 if [ -n "$RENDER" ]; then
   if [ -z "$N8N_ENCRYPTION_KEY" ] && [ -z "$N8N_ENCRYPTION_KEY_FILE" ]; then
     echo "ERROR: N8N_ENCRYPTION_KEY is not set." >&2
-    echo "Add it under Environment in the Render dashboard (e.g. the output of" >&2
-    echo "'openssl rand -base64 32'), keep a copy, and never change it." >&2
+    echo "Add your .env as a Secret File named .env (Environment -> Secret Files)," >&2
+    echo "or set N8N_ENCRYPTION_KEY as an environment variable. Generate it with" >&2
+    echo "'openssl rand -base64 32', keep a copy, and never change it." >&2
     exit 1
   fi
   if [ "$DB_TYPE" != "postgresdb" ]; then

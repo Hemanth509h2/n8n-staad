@@ -1,8 +1,11 @@
 # Render Blueprint: n8n web service built from ./Dockerfile.
 #
-# Data lives in the existing Neon Postgres database (shared with the backend
-# and feedback-board), in its own `n8n` schema; see DB_POSTGRESDB_SCHEMA in the
-# Dockerfile.
+# Every non-secret setting (database host, schema, SSL, time zone, ...) is baked
+# into the Dockerfile. The two secrets, DB_POSTGRESDB_PASSWORD and
+# N8N_ENCRYPTION_KEY, are not in this public repo: after creating the service,
+# add your .env as a Secret File named `.env` (Environment -> Secret Files).
+# render-entrypoint.sh loads /etc/secrets/.env on startup and refuses to start
+# without the encryption key.
 #
 # On the free plan the service sleeps after 15 minutes without traffic, so
 # schedule triggers stop firing and the first webhook after a sleep is slow.
@@ -12,52 +15,14 @@ services:
     name: n8n-service
     runtime: docker
     plan: free
-    # Same region as the Neon database (aws ap-southeast-1). From the default
-    # region (Oregon), every query would cross the Pacific.
+    # Same region as the Neon database (aws ap-southeast-1).
     region: singapore
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
     autoDeploy: true
-
-    # N8N_WEBHOOK_URL, N8N_EDITOR_BASE_URL and N8N_PROXY_HOPS are filled in at
-    # startup by render-entrypoint.sh. Set any of them here to override.
     envVars:
       # Tells Render up front which port n8n listens on, so it doesn't have to
-      # detect it and restart the deploy. render-entrypoint.sh copies it to
-      # N8N_PORT.
+      # detect it and restart the deploy.
       - key: PORT
         value: "5678"
-
-      # Encrypts the credentials stored in the database. Never change it
-      # after the first deploy, or every saved credential becomes unreadable.
-      # Copy it somewhere safe.
-      - key: N8N_ENCRYPTION_KEY
-        generateValue: true
-
-      # Neon. Use the *direct* host (no "-pooler"); render-entrypoint.sh
-      # refuses to start on a pooler host. Values marked `sync: false` are
-      # secrets: Render asks for them when the Blueprint is created.
-      - key: DB_TYPE
-        value: postgresdb
-      - key: DB_POSTGRESDB_HOST
-        sync: false
-      - key: DB_POSTGRESDB_PORT
-        value: "5432"
-      - key: DB_POSTGRESDB_DATABASE
-        value: neondb
-      - key: DB_POSTGRESDB_USER
-        sync: false
-      - key: DB_POSTGRESDB_PASSWORD
-        sync: false
-      - key: DB_POSTGRESDB_SSL_ENABLED
-        value: "true"
-      # ms; gives a suspended Neon compute time to wake up.
-      - key: DB_POSTGRESDB_CONNECTION_TIMEOUT
-        value: "30000"
-
-      # Keeps execution history from growing without bound.
-      - key: EXECUTIONS_DATA_PRUNE
-        value: "true"
-      - key: EXECUTIONS_DATA_MAX_AGE
-        value: "168" # hours (7 days)
