@@ -22,6 +22,20 @@ ENV NODE_ENV=production \
     N8N_DIAGNOSTICS_ENABLED=false \
     N8N_PERSONALIZATION_ENABLED=false
 
+# On Render's free/starter CPU the JS task runner takes 40s+ to boot, which
+# outlives the default 30s grant token and fails with "invalid or expired grant
+# token ... 403", leaving Code nodes without a runner. Value is in seconds.
+ENV N8N_RUNNERS_GRANT_TOKEN_TTL=180
+
+# Pin settings whose defaults n8n is about to change (silences the startup
+# deprecation warnings). Task timeout and unverified packages keep today's
+# behaviour; the compression limits take the new, smaller defaults since a
+# 512 MB instance can't decompress 2 GiB anyway.
+ENV N8N_RUNNERS_TASK_TIMEOUT=300 \
+    N8N_UNVERIFIED_PACKAGES_ENABLED=true \
+    N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=268435456 \
+    N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=1000
+
 COPY --chown=root:root --chmod=0755 render-entrypoint.sh /render-entrypoint.sh
 
 USER node

@@ -16,9 +16,15 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
 
-    # PORT, N8N_WEBHOOK_URL, N8N_EDITOR_BASE_URL and N8N_PROXY_HOPS are filled in
-    # at startup by render-entrypoint.sh. Set any of them here to override.
+    # N8N_WEBHOOK_URL, N8N_EDITOR_BASE_URL and N8N_PROXY_HOPS are filled in at
+    # startup by render-entrypoint.sh. Set any of them here to override.
     envVars:
+      # Tells Render up front which port n8n listens on, so it doesn't have to
+      # detect it and restart the deploy. render-entrypoint.sh copies it to
+      # N8N_PORT.
+      - key: PORT
+        value: "5678"
+
       # Encrypts the credentials stored in the database. Never change it
       # after the first deploy, or every saved credential becomes unreadable.
       # Copy it somewhere safe.

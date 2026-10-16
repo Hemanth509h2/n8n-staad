@@ -28,6 +28,7 @@ Open http://localhost:5678. Locally n8n uses SQLite inside the `n8n_data` volume
 
 | Variable | Value |
 | --- | --- |
+| `PORT` | `5678` |
 | `N8N_ENCRYPTION_KEY` | A long random string. Never change it afterwards. |
 | `DB_TYPE` | `postgresdb` |
 | `DB_POSTGRESDB_HOST` | internal host name |
@@ -38,7 +39,9 @@ Open http://localhost:5678. Locally n8n uses SQLite inside the `n8n_data` volume
 
 Set the health check path to `/healthz`.
 
-You don't need to set `PORT`, `N8N_WEBHOOK_URL` or `N8N_EDITOR_BASE_URL`: `render-entrypoint.sh` derives them from Render's `PORT` and `RENDER_EXTERNAL_URL`. If you add a custom domain, set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to `https://your-domain/`.
+You don't need to set `N8N_WEBHOOK_URL` or `N8N_EDITOR_BASE_URL`: `render-entrypoint.sh` derives them from Render's `RENDER_EXTERNAL_URL`. If you add a custom domain, set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to `https://your-domain/`. Don't use the old `WEBHOOK_URL` name, which n8n 2.x has deprecated.
+
+Without `PORT`, Render has to detect the port itself, logs "New primary port detected: 5678" and restarts the deploy once.
 
 **Free plan limits:** the service sleeps after 15 minutes without traffic (schedule triggers don't run while it sleeps), and a free Postgres database expires after 30 days.
 
