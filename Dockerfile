@@ -1,4 +1,4 @@
-# n8n for Render (also runs locally with plain `docker run`).
+# n8n, preconfigured for the project's Neon Postgres database.
 #
 # Pulled from Docker Hub rather than docker.n8n.io to avoid that registry's
 # 429 rate limits. Keep the tag pinned: n8n migrates the database on start,
@@ -28,7 +28,7 @@ ENV NODE_ENV=production \
 #
 # Only non-secret settings live here: this repo is public. The two secrets,
 # DB_POSTGRESDB_PASSWORD and N8N_ENCRYPTION_KEY, must be set as environment
-# variables (Render dashboard, or `docker run --env-file .env`). Without
+# variables (e.g. `docker run --env-file .env`). Without
 # N8N_ENCRYPTION_KEY, n8n generates a key inside the container that is lost on
 # every redeploy, and saved credentials become unreadable.
 ENV DB_TYPE=postgresdb \
@@ -44,7 +44,7 @@ ENV DB_TYPE=postgresdb \
 ENV EXECUTIONS_DATA_PRUNE=true \
     EXECUTIONS_DATA_MAX_AGE=168
 
-# On Render's free/starter CPU the JS task runner takes 40s+ to boot, which
+# On a small/shared CPU the JS task runner can take 40s+ to boot, which
 # outlives the default 30s grant token and fails with "invalid or expired grant
 # token ... 403", leaving Code nodes without a runner. Value is in seconds.
 ENV N8N_RUNNERS_GRANT_TOKEN_TTL=180
@@ -60,9 +60,8 @@ ENV N8N_RUNNERS_TASK_TIMEOUT=300 \
 
 USER node
 
-EXPOSE 5679
+EXPOSE 5610
 
-# For local `docker run`; Render ignores this and uses healthCheckPath instead.
 # Uses node because the hardened image doesn't guarantee curl or wget.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.N8N_PORT||process.env.PORT||5679)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]

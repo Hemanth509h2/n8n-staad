@@ -1,16 +1,15 @@
-# n8n on Render
+# n8n Docker image
 
-A ready-to-run Docker image for [n8n](https://n8n.io/) (pinned to `n8nio/n8n:2.42.7`), configured for the project's Neon Postgres database.
+A ready-to-run Docker image for [n8n](https://n8n.io/) (pinned to `n8nio/n8n:2.42.7`), preconfigured for the project's Neon Postgres database.
 
 | File | Purpose |
 | --- | --- |
 | `Dockerfile` | n8n plus every non-secret setting: Neon host, user, `n8n` schema, SSL, time zone, runner and pruning settings |
-| `render.yaml` | Render Blueprint: Docker web service in Singapore, next to the Neon database |
 | `.env.example` | The two secrets the image needs |
 
 ## Secrets
 
-This repo is public, so the image doesn't contain secrets. It needs two, supplied in a `.env` file (see `.env.example`):
+This repo is public, so the image doesn't contain secrets. It needs two, supplied as environment variables, usually from a `.env` file (see `.env.example`):
 
 | Variable | Value |
 | --- | --- |
@@ -19,7 +18,9 @@ This repo is public, so the image doesn't contain secrets. It needs two, supplie
 
 `.env` is git-ignored and excluded from the Docker build, so it never ends up in the repo or the image.
 
-## Run locally
+Without `N8N_ENCRYPTION_KEY`, n8n doesn't fail: it generates a key inside the container, which is lost when the container is recreated, and saved credentials become unreadable.
+
+## Run
 
 ```sh
 cp .env.example .env    # then fill in the two secrets
@@ -27,31 +28,15 @@ docker build -t n8n-staad .
 docker run -it --rm -p 5678:5678 --env-file .env n8n-staad
 ```
 
-Open http://localhost:5678.
+Open http://localhost:5678. If port 5678 is already in use on your machine, map another host port, e.g. `-p 5680:5678`, and open http://localhost:5680.
 
-A local run uses the same Neon database and `n8n` schema as Render, so don't run both at the same time, or scheduled workflows will run twice. For a throwaway local instance with its own SQLite database:
+When n8n is reachable at a public URL, also set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to that URL (with a trailing slash), or n8n shows webhook URLs as `http://localhost:5678/...`. Behind a reverse proxy, set `N8N_PROXY_HOPS=1`.
+
+Every instance started with `--env-file .env` uses the same Neon database and `n8n` schema, so run only one at a time, or scheduled workflows will run twice. For a throwaway instance with its own SQLite database:
 
 ```sh
 docker run -it --rm -p 5678:5678 -e DB_TYPE=sqlite -v n8n_data:/home/node/.n8n n8n-staad
 ```
-
-## Deploy on Render
-
-1. Create the service: **New → Blueprint** with this repo, or **New → Web Service** with Runtime **Docker**, region **Singapore** and health check path `/healthz`.
-2. Under **Environment**, use **Add from .env** to paste your `.env`, then add:
-
-   | Variable | Value |
-   | --- | --- |
-   | `PORT` | `5678` |
-   | `N8N_WEBHOOK_URL` | your service URL with a trailing slash, e.g. `https://n8n-service.onrender.com/` |
-   | `N8N_EDITOR_BASE_URL` | the same URL |
-   | `N8N_PROXY_HOPS` | `1` |
-
-3. Deploy.
-
-Without `N8N_ENCRYPTION_KEY`, n8n doesn't fail: it generates a key inside the container, which is lost on every redeploy, and saved credentials become unreadable. Check that it's set before the first deploy.
-
-**Free plan:** the service sleeps after 15 minutes without traffic, and schedule triggers don't run while it sleeps.
 
 ## Database
 
@@ -63,4 +48,4 @@ It must use Neon's **direct** endpoint. n8n selects its schema with a per-connec
 
 On startup n8n logs "Failed to start Python task runner in internal mode. because Python 3 is missing from this system." It's harmless: JavaScript Code nodes work normally, and only **Python** Code nodes are unavailable.
 
-Installing Python into this image doesn't fix it. The n8n image is a hardened Alpine image with the package manager removed, and n8n also needs its Python runner and virtualenv, which ship in the separate `n8nio/runners` image. For Python Code nodes, run `n8nio/runners:2.42.7` as a second service in external mode (see the [n8n task runner docs](https://docs.n8n.io/hosting/configuration/task-runners/)).
+Installing Python into this image doesn't fix it. The n8n image is a hardened Alpine image with the package manager removed, and n8n also needs its Python runner and virtualenv, which ship in the separate `n8nio/runners` image. For Python Code nodes, run `n8nio/runners:2.42.7` as a second container in external mode (see the [n8n task runner docs](https://docs.n8n.io/hosting/configuration/task-runners/)).
