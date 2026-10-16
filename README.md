@@ -5,7 +5,6 @@ A ready-to-run Docker image for [n8n](https://n8n.io/) (pinned to `n8nio/n8n:2.4
 | File | Purpose |
 | --- | --- |
 | `Dockerfile` | n8n plus every non-secret setting: Neon host, user, `n8n` schema, SSL, time zone, runner and pruning settings |
-| `render-entrypoint.sh` | Loads secrets from a `.env` file, checks the configuration, maps Render's `PORT` and URL onto n8n, then starts n8n |
 | `render.yaml` | Render Blueprint: Docker web service in Singapore, next to the Neon database |
 | `.env.example` | The two secrets the image needs |
 
@@ -39,16 +38,18 @@ docker run -it --rm -p 5678:5678 -e DB_TYPE=sqlite -v n8n_data:/home/node/.n8n n
 ## Deploy on Render
 
 1. Create the service: **New → Blueprint** with this repo, or **New → Web Service** with Runtime **Docker**, region **Singapore** and health check path `/healthz`.
-2. Go to **Environment → Secret Files** and add a file named **`.env`** containing your `.env`.
+2. Under **Environment**, use **Add from .env** to paste your `.env`, then add:
+
+   | Variable | Value |
+   | --- | --- |
+   | `PORT` | `5678` |
+   | `N8N_WEBHOOK_URL` | your service URL with a trailing slash, e.g. `https://n8n-service.onrender.com/` |
+   | `N8N_EDITOR_BASE_URL` | the same URL |
+   | `N8N_PROXY_HOPS` | `1` |
+
 3. Deploy.
 
-On startup `render-entrypoint.sh` loads `/etc/secrets/.env` and:
-
-- refuses to start if `N8N_ENCRYPTION_KEY` is missing (an auto-generated key would be lost on the next deploy);
-- refuses to start on a Neon `-pooler` host (see below);
-- sets `N8N_PORT`, `N8N_WEBHOOK_URL`, `N8N_EDITOR_BASE_URL` and `N8N_PROXY_HOPS` from Render's `PORT` and `RENDER_EXTERNAL_URL`.
-
-Values in the `.env` file override the Dockerfile defaults, so any n8n setting can be changed there without rebuilding. Plain environment variables work too, if you'd rather not use a Secret File.
+Without `N8N_ENCRYPTION_KEY`, n8n doesn't fail: it generates a key inside the container, which is lost on every redeploy, and saved credentials become unreadable. Check that it's set before the first deploy.
 
 **Free plan:** the service sleeps after 15 minutes without traffic, and schedule triggers don't run while it sleeps.
 

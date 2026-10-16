@@ -20,14 +20,17 @@ ENV NODE_ENV=production \
     N8N_DIAGNOSTICS_ENABLED=false \
     N8N_PERSONALIZATION_ENABLED=false
 
-# Database: the project's Neon Postgres, direct endpoint (never "-pooler"; see
-# render-entrypoint.sh). n8n keeps its ~60 tables in their own `n8n` schema,
-# which it creates on first start, because the database is shared with the
-# backend and feedback-board, whose tables live in `public`.
+# Database: the project's Neon Postgres. Use the direct endpoint, never the
+# "-pooler" one: n8n selects its schema with a session-level SET search_path,
+# which the pooler drops, so tables could land in `public`. n8n keeps its ~60
+# tables in their own `n8n` schema, which it creates on first start, because
+# the database is shared with the backend and feedback-board.
 #
 # Only non-secret settings live here: this repo is public. The two secrets,
-# DB_POSTGRESDB_PASSWORD and N8N_ENCRYPTION_KEY, come from a .env file loaded
-# at startup (Render Secret File /etc/secrets/.env) or from the environment.
+# DB_POSTGRESDB_PASSWORD and N8N_ENCRYPTION_KEY, must be set as environment
+# variables (Render dashboard, or `docker run --env-file .env`). Without
+# N8N_ENCRYPTION_KEY, n8n generates a key inside the container that is lost on
+# every redeploy, and saved credentials become unreadable.
 ENV DB_TYPE=postgresdb \
     DB_POSTGRESDB_HOST=ep-bold-butterfly-aox1gpwj.c-2.ap-southeast-1.aws.neon.tech \
     DB_POSTGRESDB_PORT=5432 \
@@ -55,18 +58,13 @@ ENV N8N_RUNNERS_TASK_TIMEOUT=300 \
     N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=268435456 \
     N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=1000
 
-# Plain COPY (no --chmod) so the legacy builder works too, not only BuildKit.
-# COPY files are owned by root, and the entrypoint runs the script through
-# /bin/sh, so it doesn't depend on the file's execute bit.
-COPY render-entrypoint.sh /render-entrypoint.sh
-
 USER node
 
-EXPOSE 5678
+EXPOSE 5679
 
 # For local `docker run`; Render ignores this and uses healthCheckPath instead.
 # Uses node because the hardened image doesn't guarantee curl or wget.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.N8N_PORT||process.env.PORT||5678)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+    CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.N8N_PORT||process.env.PORT||5679)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
-ENTRYPOINT ["tini", "--", "/bin/sh", "/render-entrypoint.sh"]
+# No ENTRYPOINT: the base image's `tini -- /docker-entrypoint.sh` starts n8n.

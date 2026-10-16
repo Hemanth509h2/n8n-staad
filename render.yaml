@@ -1,11 +1,9 @@
 # Render Blueprint: n8n web service built from ./Dockerfile.
 #
 # Every non-secret setting (database host, schema, SSL, time zone, ...) is baked
-# into the Dockerfile. The two secrets, DB_POSTGRESDB_PASSWORD and
-# N8N_ENCRYPTION_KEY, are not in this public repo: after creating the service,
-# add your .env as a Secret File named `.env` (Environment -> Secret Files).
-# render-entrypoint.sh loads /etc/secrets/.env on startup and refuses to start
-# without the encryption key.
+# into the Dockerfile. Values marked `sync: false` aren't stored in this public
+# repo: Render asks for them when the Blueprint is created. The quickest way to
+# fill them is Environment -> "Add from .env" with your local .env.
 #
 # On the free plan the service sleeps after 15 minutes without traffic, so
 # schedule triggers stop firing and the first webhook after a sleep is slow.
@@ -22,7 +20,24 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
-      # Tells Render up front which port n8n listens on, so it doesn't have to
-      # detect it and restart the deploy.
+      # Tells Render which port n8n listens on, so it doesn't have to detect
+      # it and restart the deploy.
       - key: PORT
         value: "5678"
+
+      # Encrypts saved credentials. Never change it after the first deploy.
+      - key: N8N_ENCRYPTION_KEY
+        sync: false
+      - key: DB_POSTGRESDB_PASSWORD
+        sync: false
+
+      # The service's public URL with a trailing slash, e.g.
+      # https://n8n-service.onrender.com/. Without these, n8n shows webhook and
+      # OAuth callback URLs as http://localhost:5678/...
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: N8N_EDITOR_BASE_URL
+        sync: false
+      # One reverse proxy (Render's) sits in front of n8n.
+      - key: N8N_PROXY_HOPS
+        value: "1"
