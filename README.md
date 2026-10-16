@@ -28,6 +28,24 @@ docker build -t n8n-staad .
 docker run -it --rm -p 5610:5610 --env-file .env n8n-staad
 ```
 
+That runs in the foreground and is removed when you press Ctrl+C. To run it as a background container that restarts with Docker and survives reboots:
+
+```sh
+docker run -d --name n8n-staad --restart unless-stopped \
+  -p 5610:5610 --env-file .env \
+  -v n8n_staad_data:/home/node/.n8n \
+  n8n-staad
+```
+
+| Task | Command |
+| --- | --- |
+| Follow the logs | `docker logs -f n8n-staad` |
+| Status / health | `docker ps --filter name=n8n-staad` |
+| Stop / start | `docker stop n8n-staad` / `docker start n8n-staad` |
+| Update after changing the Dockerfile or `.env` | `docker build -t n8n-staad . && docker rm -f n8n-staad`, then the `docker run -d ...` command again |
+
+Workflows and credentials live in Neon, so removing the container loses nothing; the `n8n_staad_data` volume keeps n8n's local files (config, binary data) across re-creations.
+
 Open http://localhost:5610. n8n listens on port 5610 inside the container. If that port is taken on your machine, change only the host side, e.g. `-p 5680:5610`, and open http://localhost:5680.
 
 When n8n is reachable at a public URL, also set `N8N_WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` to that URL (with a trailing slash), or n8n shows webhook URLs as `http://localhost:5610/...`. Behind a reverse proxy, set `N8N_PROXY_HOPS=1`.
